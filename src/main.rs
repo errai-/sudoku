@@ -104,159 +104,88 @@ impl SudokuGrid {
         }
     }
 
-    //fn col_exclusion(&mut self) {
-    //    for i in 0..81 {
-    //        if self.col_counters[i]==1 {
-    //            let num = i%9;
-    //            let col = i/9;
-    //            for j in 0..9 {
-    //                if self.data[j][col].candidates[num] {
-    //                    //self.data[j][col].value = num as u32 + 1;
-    //                }
-    //            }
-    //            self.col_counters[i]=0;
-    //        }
-    //    }
-    //}
-
-    //fn blk_exclusion(&mut self) {
-    //    for blk_r in 0..3 {
-    //    for blk_c in 0..3 {
-    //        let c_loc = 9*( 3*blk_r + blk_c );
-    //        for num in 0..9 {
-    //            if self.blk_counters[c_loc+num]==1 {
-    //                for row in 0..3 {
-    //                for col in 0..3 {
-    //                    if self.data[blk_r*3+row][blk_c*3+col].candidates[num] {
-    //                        self.data[blk_r*3+row][blk_c*3+col].value = num as u32 + 1;
-    //                    }
-    //                }
-    //                }
-    //            }
-    //        }
-    //    }
-    //    }
-    //}
-
-    //fn check_col(&mut self, row: usize, col: usize) {
-    //    for i in 0..9 {
-    //        let loc = col*9+i;
-    //        if self.col_counters[loc] != 0 {
-    //            self.col_counters[col*9+i] -= 1;
-    //        }
-    //    }
-    //    let type_loc: usize = self.data[row][col].value as usize - 1;
-    //    self.col_counters[col*9+type_loc]=0;
-
-    //    let val: usize = self.data[row][col].value as usize;
-    //    for i in 0..9 {
-    //        if self.data[i][col].value==0 {
-    //            if self.data[i][col].candidates[val-1]==true {
-    //                let blk_r = i/3;
-    //                let blk_c = col/3;
-    //                if self.blk_counters[9*(3*blk_r+blk_c)+i] != 0 {
-    //                    self.blk_counters[9*(3*blk_r+blk_c)+i] -= 1;
-    //                }
-    //            }
-    //            self.data[i][col].candidates[val-1]=false;
-    //        }
-    //    }
-    //}
-
-    //fn check_row(&mut self, row: usize, col: usize) {
-    //    for i in 0..9 {
-    //        let loc = row*9+i;
-    //        if self.row_counters[loc] != 0 {
-    //            self.row_counters[row*9+i] -= 1;
-    //        }
-    //    }
-    //    let type_loc: usize = self.data[row][col].value as usize - 1;
-    //    self.row_counters[row*9+type_loc]=0;
-    //    
-    //    let val: usize = self.data[row][col].value as usize;
-    //    for i in 0..9 {
-    //        if self.data[row][i].value==0 {
-    //            self.data[row][i].candidates[val-1]=false;
-    //        }
-    //    }
-    //}
-
-    //fn check_blk(&mut self, row: usize, col: usize) {
-    //    let blk_r = row/3;
-    //    let blk_c = col/3;
-
-    //    let loc = 9*(3*blk_r+blk_c);
-    //    for i in 0..9 {
-    //        if self.blk_counters[loc+i] != 0 {
-    //            self.blk_counters[loc+i] -= 1;
-    //        }
-    //    }
-    //    let type_loc: usize = self.data[row][col].value as usize - 1;
-    //    self.blk_counters[loc+type_loc]=0;
-
-    //    let val: usize = self.data[row][col].value as usize;
-    //    for row in 0..3 {
-    //    for col in 0..3 {
-    //        if self.data[3*blk_r+row][3*blk_c+col].value==0 {
-    //            if self.data[3*blk_r+row][3*blk_c+col].candidates[val-1]==true {
-    //                self.blk_counters[loc+val-1];
-    //            }
-    //            self.data[3*blk_r+row][3*blk_c+col].candidates[val-1]=false;
-    //        }
-    //    }
-    //    }
-    //}
-
-
-    //fn cand_amount(&mut self, pos: usize) {
-
-    //}
-
-    //fn block_exclusion() {
-    //    for r_block in 0..3
-    //    for c_block in 0..3
-    //        let mut counter = vec![0; 9];
-    //        for row in 0..3
-    //        for col in 0..3
-    //            let loc = (3*r_block+row)*9+3*c_block+col;
-    //            for 
-    //        }
-    //        }
-    //    }
-    //    }
-    //}
-
     fn update(&mut self) {
-        //for i in 0..9 {
-        //    for j in 0..9 {
-        //        if self.data[i][j].value!=0 && !self.data[i][j].stabilized {
-        //            for checker in 0..9 {
-        //                self.data[i][j].candidates[checker] = false;
-        //            }
-                    //self.check_col(i,j);
-                    //self.check_blk(i,j);
-                    //self.check_row(i);
-                    //self.check_block(i);
-                    //self.col_exclusion();
-                    //self.blk_exclusion();
-                    //self.block_exclusion();
-                    //self.data[i].stabilized = true;
-        //        }
-        //    }
-        //}
+        for i in 0..9 {
+            for val_loc in 0..9 {
+                if self.row_counters[i][val_loc]==1 {
+                    for col in 0..9 {
+                        if self.data[i][col].candidates[val_loc] {
+                            self.set_val(i,col,val_loc as u8+1);
+                            break;
+                        }
+                    }
+                }
 
-        //for i in 0..9 {
-        //    //print!("{} ",self.blk_counters[9+i]);
-        //}
+                if self.col_counters[i][val_loc]==1 {
+                    for row in 0..9 {
+                        if self.data[row][i].candidates[val_loc] {
+                            self.set_val(row,i,val_loc as u8+1);
+                            break;
+                        }
+                    }
+                }
+
+                if self.blk_counters[i][val_loc]==1 {
+                    let mut blk_row = i/3;
+                    let mut blk_col = i%3;
+                    blk_row = blk_row*3;
+                    blk_col = blk_col*3;
+                    for rowcol in 0..9 {
+                        let row = blk_row+rowcol/3;
+                        let col = blk_col+rowcol%3;
+                        if self.data[row][col].candidates[val_loc] {
+                            self.set_val(row,col,val_loc as u8+1);
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // If sanity check is turned on, counts the sum in each row, column and block.
+    // This is on average a trustworthy sanity check.
+    fn is_complete(&self,sanity_check: bool) -> bool {
+        if sanity_check {
+            for rowcol in 0..9 {
+                let mut row_count = 0;
+                let mut col_count = 0;
+
+                let mut blk_count = 0;
+                let mut blk_row = rowcol/3;
+                let mut blk_col = rowcol%3;
+
+                blk_row = blk_row*3;
+                blk_col = blk_col*3;
+                for colrow in 0..9 {
+                    row_count += self.data[rowcol][colrow].value;
+                    col_count += self.data[colrow][rowcol].value;
+                    let row = blk_row+colrow/3;
+                    let col = blk_col+colrow%3;
+                    blk_count += self.data[row][col].value;
+                }
+                if row_count!=45 || col_count!=45 || blk_count!=45 {
+                    return false;
+                }
+            }
+        }
+
+        for row in 0..9 {
+        for col in 0..9 {
+            if self.data[row][col].value==0 {
+                return false;
+            }
+        }
+        }
+
+        true
     }
 
     fn print(&self) {
         print!( "\n" );
         for i in 0..9 {
             for j in 0..9 {
-                let mut val = 0;
-                if self.data[i][j].candidates[0] { val = 1; }
-                print!( "{},{} ", self.data[i][j].value, val);
+                print!( "{}", self.data[i][j].value);
                 if (j+1)%3==0 {
                     print!( " " );
                 }
@@ -305,11 +234,18 @@ fn main() {
     let mut sudokus : Vec<SudokuGrid> = Vec::new();
     reader( &lines, read_amount, &mut sudokus );
 
-    sudokus[0].print();
-    sudokus[0].update();
-    sudokus[0].print();
-    sudokus[0].update();
-    sudokus[0].print();
+    for sudoku_idx in 0..sudokus.len() {
+        let mut iters = 0;
+        while !sudokus[sudoku_idx].is_complete(true) {
+            sudokus[sudoku_idx].update();
+            iters += 1;
+            print!("{}\n",iters);
+            if iters==10 {
+                break;
+            }
+        }
+        sudokus[sudoku_idx].print();
+    }
 }
 
 fn reader( data: &str, read_amount: usize, sudokus: &mut Vec<SudokuGrid> ) {
