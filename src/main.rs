@@ -8,6 +8,7 @@ use std::env;
 struct Cell {
     value: u8,
     candidates: Vec<bool>,
+    candidate_amnt: u8,
 
     blk_id: usize,
 }
@@ -17,6 +18,7 @@ impl Cell {
         Cell {
             value: 0,
             candidates: vec![true;9],
+            candidate_amnt: 9,
 
             blk_id: 3*row+col,
         }
@@ -73,6 +75,7 @@ impl SudokuGrid {
                 self.blk_counters[blk_loc][i] -= 1;
             }
             self.data[row][col].candidates[i] = false;
+            self.data[row][col].candidate_amnt = 0;
         }
 
         // Substract the effect of the current value from rows, cols and blocks
@@ -81,33 +84,30 @@ impl SudokuGrid {
         blk_row = blk_row*3;
         blk_col = blk_col*3;
         for i in 0..9 {
-            if self.data[row][i].candidates[val_loc] {
-                self.row_counters[row][val_loc] -= 1;
-                self.col_counters[i][val_loc] -= 1;
-                self.blk_counters[self.data[row][i].blk_id][val_loc] -= 1;
-                self.data[row][i].candidates[val_loc] = false;
-            }
-            if self.data[i][col].candidates[val_loc] {
-                self.row_counters[i][val_loc] -= 1;
-                self.col_counters[col][val_loc] -= 1;
-                self.blk_counters[self.data[i][col].blk_id][val_loc] -= 1;
-                self.data[i][col].candidates[val_loc] = false;
-            }
+            self.flip_val(row,i,val_loc);
+            self.flip_val(i,col,val_loc);
             let irow = i/3;
             let icol = i%3;
-            if self.data[blk_row+irow][blk_col+icol].candidates[val_loc] {
-                self.row_counters[blk_row+irow][val_loc] -= 1;
-                self.col_counters[blk_col+icol][val_loc] -= 1;
-                self.blk_counters[self.data[row][col].blk_id][val_loc] -= 1;
-                self.data[blk_row+irow][blk_col+icol].candidates[val_loc] = false;
-            }
+            self.flip_val(blk_row+irow,blk_col+icol,val_loc);
+        }
+    }
+
+    fn flip_val(&mut self, row: usize, col: usize, val_loc: usize) {
+        if self.data[row][col].candidates[val_loc] {
+            self.row_counters[row][val_loc] -= 1;
+            self.col_counters[col][val_loc] -= 1;
+            self.blk_counters[self.data[row][col].blk_id][val_loc] -= 1;
+            self.data[row][col].candidates[val_loc] = false;
+            self.data[row][col].candidate_amnt -= 1;
         }
     }
 
     fn update(&mut self) {
+        let mut sets = 0;
         for i in 0..9 {
             for val_loc in 0..9 {
                 if self.row_counters[i][val_loc]==1 {
+                    sets += 1;
                     for col in 0..9 {
                         if self.data[i][col].candidates[val_loc] {
                             self.set_val(i,col,val_loc as u8+1);
@@ -117,6 +117,7 @@ impl SudokuGrid {
                 }
 
                 if self.col_counters[i][val_loc]==1 {
+                    sets += 1;
                     for row in 0..9 {
                         if self.data[row][i].candidates[val_loc] {
                             self.set_val(row,i,val_loc as u8+1);
@@ -126,6 +127,7 @@ impl SudokuGrid {
                 }
 
                 if self.blk_counters[i][val_loc]==1 {
+                    sets += 1;
                     let mut blk_row = i/3;
                     let mut blk_col = i%3;
                     blk_row = blk_row*3;
@@ -140,6 +142,75 @@ impl SudokuGrid {
                     }
                 }
             }
+        }
+
+        if sets==0 {
+            sets += self.singles();
+        }
+
+        if sets==0 {
+            self.advanced_update();
+        }
+    }
+
+    fn singles(&mut self) -> usize {
+        let mut sets = 0;
+        for row in 0..9 {
+        for col in 0..9 {
+            if self.data[row][col].candidate_amnt==0 { continue; }
+            if self.data[row][col].candidate_amnt==1 {
+                for val_loc in 0..9 {
+                    if self.data[row][col].candidates[val_loc] {
+                        self.set_val(row,col,val_loc as u8+1);
+                    }
+                }
+            }
+        }
+        }
+        sets
+    }
+
+    // Seek for blocks with only two candidates for a value and possibly eliminate rows/cols.
+    fn advanced_update(&mut self) {
+        for blk in 0..9 {
+        for val_loc in 0..9 {
+            if self.blk_counters[blk][val_loc]==2 {
+                let mut blk_row = blk/3;
+                let mut blk_col = blk%3;
+                blk_row = blk_row*3;
+                blk_col = blk_col*3;
+
+                let mut row_id = 9;
+                let mut col_id = 9;
+                for i in 0..9 {
+                    let row = blk_row+i/3;
+                    let col = blk_col+i%3;
+                    if self.data[row][col].candidates[val_loc] {
+                        if row_id == 9 {
+                            row_id = row;
+                            col_id = col;
+                        } else {
+                            if row==row_id {
+                                for j in 0..blk_col {
+                                    self.flip_val(row,j,val_loc);
+                                }
+                                for j in blk_col+3..9 {
+                                    self.flip_val(row,j,val_loc);
+                                }
+                            } else if col==col_id {
+                                for j in 0..blk_row {
+                                    self.flip_val(j,col,val_loc);
+                                }
+                                for j in blk_row+3..9 {
+                                    self.flip_val(j,col,val_loc);
+                                }
+                            }
+                            break;
+                        }
+                    }
+                }
+            }
+        }
         }
     }
 
@@ -236,13 +307,16 @@ fn main() {
 
     for sudoku_idx in 0..sudokus.len() {
         let mut iters = 0;
-        while !sudokus[sudoku_idx].is_complete(true) {
+        while !sudokus[sudoku_idx].is_complete(false) {
             sudokus[sudoku_idx].update();
             iters += 1;
-            print!("{}\n",iters);
-            if iters==10 {
+            if iters==30 {
                 break;
             }
+        }
+        println!("{}",sudoku_idx);
+        if !sudokus[sudoku_idx].is_complete(true) {
+            println!("Something is wrong!");
         }
         sudokus[sudoku_idx].print();
     }
