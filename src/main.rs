@@ -258,6 +258,83 @@ impl SudokuGrid {
         true
     }
 
+    fn dualism(&self) -> Vec<usize> {
+        for row in 0..9 {
+            let mut count = 0;
+            let mut strategy: Vec<usize> = Vec::new();
+            for val_loc in 0..9 {
+                if self.row_counters[row][val_loc]==2 {
+                    count += 1;
+                    strategy.push(val_loc);
+                } else if self.row_counters[row][val_loc]!=0 {
+                    count = 0;
+                    break;
+                }
+            }
+            if count==2 {
+                for col in 0..9 {
+                    if self.data[row][col].value==0 {
+                        strategy.push(row);
+                        strategy.push(col);
+                    }
+                }
+                return strategy;
+            }
+        }
+        for col in 0..9 {
+            let mut count = 0;
+            let mut strategy: Vec<usize> = Vec::new();
+            for val_loc in 0..9 {
+                if self.col_counters[col][val_loc]==2 {
+                    count += 1;
+                    strategy.push(val_loc);
+                } else if self.col_counters[col][val_loc]!=0 {
+                    count = 0;
+                    break;
+                }
+            }
+            if count==2 {
+                for row in 0..9 {
+                    if self.data[row][col].value==0 {
+                        strategy.push(row);
+                        strategy.push(col);
+                    }
+                }
+                return strategy;
+            }
+        }
+        for blk in 0..9 {
+            let mut count = 0;
+            let mut strategy: Vec<usize> = Vec::new();
+            for val_loc in 0..9 {
+                if self.blk_counters[blk][val_loc]==2 {
+                    count += 1;
+                    strategy.push(val_loc);
+                } else if self.blk_counters[blk][val_loc]!=0 {
+                    count = 0;
+                    break;
+                }
+            }
+            if count==2 {
+                let mut blk_row = blk/3;
+                let mut blk_col = blk%3;
+
+                blk_row = blk_row*3;
+                blk_col = blk_col*3;
+                for colrow in 0..9 {
+                    let row = blk_row+colrow/3;
+                    let col = blk_col+colrow%3;
+                    if self.data[row][col].value==0 {
+                        strategy.push(row);
+                        strategy.push(col);
+                    }
+                }
+                return strategy;
+            }
+        }
+        vec![0;5]
+    }
+
     fn print(&self) {
         print!( "\n" );
         for i in 0..9 {
@@ -312,24 +389,55 @@ fn main() {
     reader( &lines, read_amount, &mut sudokus );
 
     for sudoku_idx in 0..sudokus.len() {
-        let mut iters = 0;
-        while !sudokus[sudoku_idx].is_complete(false) {
-            if sudokus[sudoku_idx].update() {
-                println!("Success");
-            } else {
-                println!("Failure");
-            }
-            iters += 1;
-            if iters==30 {
-                break;
-            }
-        }
+        sudoku_loop( &mut sudokus[sudoku_idx],1 );
         println!("{}",sudoku_idx);
         if !sudokus[sudoku_idx].is_complete(true) {
             println!("Something is wrong!");
         }
         sudokus[sudoku_idx].print();
     }
+}
+
+fn sudoku_copy(sudoku1 : &mut SudokuGrid, sudoku2 : &mut SudokuGrid) {
+    for row in 0..9 {
+    for col in 0..9 {
+        if sudoku2.data[row][col].value == 0 && sudoku1.data[row][col].value != 0 {
+            sudoku2.set_val( row, col, sudoku1.data[row][col].value );
+        }
+    }
+    }
+}
+
+fn sudoku_loop(sudoku : &mut SudokuGrid, depth: usize) -> bool {
+    while !sudoku.is_complete(false) {
+        if sudoku.update() {
+            println!("Success!");
+        } else {
+            if depth<1 { return false; }
+            let dual = sudoku.dualism();
+            if dual.len()!=6 { return false; }
+            let mut probeSudoku1 : SudokuGrid = SudokuGrid::new();
+            sudoku_copy( sudoku, &mut probeSudoku1 );
+            probeSudoku1.set_val( dual[2], dual[3], dual[0] as u8 + 1 );
+            probeSudoku1.set_val( dual[4], dual[5], dual[1] as u8 + 1 );
+            if sudoku_loop( &mut probeSudoku1, depth-1 ) {
+                sudoku_copy( &mut probeSudoku1, sudoku );
+            } else {
+                let mut probeSudoku2 : SudokuGrid = SudokuGrid::new();
+                sudoku_copy( sudoku, &mut probeSudoku2 );
+                probeSudoku2.set_val( dual[2], dual[3], dual[1] as u8 + 1 );
+                probeSudoku2.set_val( dual[4], dual[5], dual[0] as u8 + 1 );
+                if sudoku_loop( &mut probeSudoku2, depth-1 ) {
+                    sudoku_copy( &mut probeSudoku2, sudoku );
+                } else {
+                    println!("Failure!");
+                    return false;
+                }
+            }
+            break;
+        }
+    }
+    true
 }
 
 fn reader( data: &str, read_amount: usize, sudokus: &mut Vec<SudokuGrid> ) {
