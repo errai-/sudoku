@@ -92,17 +92,19 @@ impl SudokuGrid {
         }
     }
 
-    fn flip_val(&mut self, row: usize, col: usize, val_loc: usize) {
+    fn flip_val(&mut self, row: usize, col: usize, val_loc: usize) -> bool {
         if self.data[row][col].candidates[val_loc] {
             self.row_counters[row][val_loc] -= 1;
             self.col_counters[col][val_loc] -= 1;
             self.blk_counters[self.data[row][col].blk_id][val_loc] -= 1;
             self.data[row][col].candidates[val_loc] = false;
             self.data[row][col].candidate_amnt -= 1;
+            return true;
         }
+        false
     }
 
-    fn update(&mut self) {
+    fn update(&mut self) -> bool {
         let mut sets = 0;
         for i in 0..9 {
             for val_loc in 0..9 {
@@ -149,8 +151,9 @@ impl SudokuGrid {
         }
 
         if sets==0 {
-            self.advanced_update();
+            if !self.advanced_update() { return false; }
         }
+        true
     }
 
     fn singles(&mut self) -> usize {
@@ -171,7 +174,8 @@ impl SudokuGrid {
     }
 
     // Seek for blocks with only two candidates for a value and possibly eliminate rows/cols.
-    fn advanced_update(&mut self) {
+    fn advanced_update(&mut self) -> bool {
+        let mut counter = 0;
         for blk in 0..9 {
         for val_loc in 0..9 {
             if self.blk_counters[blk][val_loc]==2 {
@@ -192,17 +196,17 @@ impl SudokuGrid {
                         } else {
                             if row==row_id {
                                 for j in 0..blk_col {
-                                    self.flip_val(row,j,val_loc);
+                                    if self.flip_val(row,j,val_loc) { counter += 1; }
                                 }
                                 for j in blk_col+3..9 {
-                                    self.flip_val(row,j,val_loc);
+                                    if self.flip_val(row,j,val_loc) { counter += 1; }
                                 }
                             } else if col==col_id {
                                 for j in 0..blk_row {
-                                    self.flip_val(j,col,val_loc);
+                                    if self.flip_val(j,col,val_loc) { counter += 1; }
                                 }
                                 for j in blk_row+3..9 {
-                                    self.flip_val(j,col,val_loc);
+                                    if self.flip_val(j,col,val_loc) { counter += 1; }
                                 }
                             }
                             break;
@@ -212,6 +216,8 @@ impl SudokuGrid {
             }
         }
         }
+        if counter>0 { return true; }
+        false
     }
 
     // If sanity check is turned on, counts the sum in each row, column and block.
@@ -308,7 +314,11 @@ fn main() {
     for sudoku_idx in 0..sudokus.len() {
         let mut iters = 0;
         while !sudokus[sudoku_idx].is_complete(false) {
-            sudokus[sudoku_idx].update();
+            if sudokus[sudoku_idx].update() {
+                println!("Success");
+            } else {
+                println!("Failure");
+            }
             iters += 1;
             if iters==30 {
                 break;
