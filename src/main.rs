@@ -261,47 +261,105 @@ impl SudokuGrid {
 
     fn dualism(&self) -> Vec<usize> {
         for row in 0..9 {
-            let mut count = 0;
             let mut strategy: Vec<usize> = Vec::new();
+            let mut probe: Vec<usize> = Vec::new();
             for val_loc in 0..9 {
                 if self.row_counters[row][val_loc]==2 {
-                    count += 1;
-                    strategy.push(val_loc);
-                } else if self.row_counters[row][val_loc]!=0 {
-                    count = 0;
-                    break;
+                    probe.push(val_loc);
                 }
             }
-            if count==2 {
-                for col in 0..9 {
-                    if self.data[row][col].value==0 {
-                        strategy.push(row);
-                        strategy.push(col);
+            if probe.len()>1 {
+                let mut pos1 = -1;
+                let mut pos2 = -1;
+                for val1 in 0..probe.len()-1 {
+                    for col in 0..9 {
+                        if self.data[row][col].candidates[probe[val1]] {
+                            if pos1 == -1 {
+                                pos1 = col;
+                            } else {
+                                pos2 = col;
+                                break;
+                            }
+                        }
+                    }
+                    let mut pos3 = -1;
+                    let mut pos4 = -1;
+                    for val2 in val1+1..probe.len() {
+                        for col2 in 0..9 {
+                            if self.data[row][col2].candidates[probe[val2]] {
+                                if pos3 == -1 {
+                                    pos3 = col2;
+                                } else {
+                                    pos4 = col2;
+                                    break;
+                                }
+                            }
+                        }
+                        if pos3==pos1 && pos4==pos2 {
+                            strategy.push(probe[val1]);
+                            strategy.push(probe[val2]);
+                            strategy.push( row );
+                            strategy.push( pos3 );
+                            strategy.push( row );
+                            strategy.push( pos4 );
+                            break;
+                        }
+                    }
+                    if strategy.len()==6 {
+                        return strategy;
                     }
                 }
-                return strategy;
             }
         }
         for col in 0..9 {
-            let mut count = 0;
             let mut strategy: Vec<usize> = Vec::new();
+            let mut probe: Vec<usize> = Vec::new();
             for val_loc in 0..9 {
                 if self.col_counters[col][val_loc]==2 {
-                    count += 1;
-                    strategy.push(val_loc);
-                } else if self.col_counters[col][val_loc]!=0 {
-                    count = 0;
-                    break;
+                    probe.push(val_loc);
                 }
             }
-            if count==2 {
-                for row in 0..9 {
-                    if self.data[row][col].value==0 {
-                        strategy.push(row);
-                        strategy.push(col);
+            if probe.len()>1 {
+                let mut pos1 = -1;
+                let mut pos2 = -1;
+                for val1 in 0..probe.len()-1 {
+                    for row in 0..9 {
+                        if self.data[row][col].candidates[probe[val1]] {
+                            if pos1 == -1 {
+                                pos1 = row;
+                            } else {
+                                pos2 = row;
+                                break;
+                            }
+                        }
+                    }
+                    let mut pos3 = -1;
+                    let mut pos4 = -1;
+                    for val2 in val1+1..probe.len() {
+                        for row2 in 0..9 {
+                            if self.data[row2][col].candidates[probe[val2]] {
+                                if pos3 == -1 {
+                                    pos3 = row2;
+                                } else {
+                                    pos4 = row2;
+                                    break;
+                                }
+                            }
+                        }
+                        if pos3==pos1 && pos4==pos2 {
+                            strategy.push(probe[val1]);
+                            strategy.push(probe[val2]);
+                            strategy.push( pos3 );
+                            strategy.push( col );
+                            strategy.push( pos4 );
+                            strategy.push( col );
+                            break;
+                        }
+                    }
+                    if strategy.len()==6 {
+                        return strategy;
                     }
                 }
-                return strategy;
             }
         }
         for blk in 0..9 {
