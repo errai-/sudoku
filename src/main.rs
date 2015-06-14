@@ -4,60 +4,85 @@ use std::error::Error;
 use std::path::Path;
 use std::env;
 
-
-struct Cell {
+struct SudokuCell {
     value: u8,
     candidates: Vec<bool>,
     candidate_amnt: u8,
 
+    row_id: usize,
+    col_id: usize,
     blk_id: usize,
 }
 
-impl Cell {
-    fn new(row: usize, col: usize) -> Cell {
-        Cell {
+impl SudokuCell {
+    fn new(row: usize, col: usize) -> SudokuCell {
+        SudokuCell {
             value: 0,
             candidates: vec![true;9],
             candidate_amnt: 9,
 
+            row_id: row,
+            col_id: col,
             blk_id: 3*row+col,
         }
     }
 }
 
 struct SudokuGrid {
-    data: Vec< Vec<Cell> >,
+    data: Vec< Vec<SudokuCell> >,
 
     row_counters: Vec< Vec<u8> >,
     col_counters: Vec< Vec<u8> >,
     blk_counters: Vec< Vec<u8> >,
+
+    row_order: Vec< Vec<(usize,usize)> >,
+    blk_order: Vec< Vec<(usize,usize)> >,
 }
 
 // Initialize containers
 impl SudokuGrid {
     fn new()->SudokuGrid {
-        let mut init1: Vec< Vec<Cell> > = Vec::new();
+        let mut init1: Vec< Vec<SudokuCell> > = Vec::new();
         let mut i_row1: Vec< Vec<u8> > = Vec::new();
         let mut i_col1: Vec< Vec<u8> > = Vec::new();
         let mut i_blk1: Vec< Vec<u8> > = Vec::new();
+
+        let mut o_row1: Vec< Vec<(usize,usize)> > = Vec::new();
+        let mut o_blk1: Vec< Vec<(usize,usize)> > = Vec::new();
         for i in 0..9 {
-            let mut init2: Vec<Cell> = Vec::new();
+            let mut init2: Vec<SudokuCell> = Vec::new();
             let i_row2: Vec<u8> = vec![9;9];
             let i_col2: Vec<u8> = vec![9;9];
             let i_blk2: Vec<u8> = vec![9;9];
+
+            let mut o_row2: Vec<(usize,usize)> = Vec::new();
+            let mut o_blk2: Vec<(usize,usize)> = Vec::new();
             for j in 0..9 {
-                init2.push( Cell::new(i/3,j/3) );
+                init2.push( SudokuCell::new(i/3,j/3) );
+
+                o_row2.push( (i,j) );
+                let mut blk_row = i/3;
+                let mut blk_col = i%3;
+                blk_row = i*3;
+                blk_col = i*3;
+                o_blk2.push( (blk_row+j/3,blk_col+j%3) );
             }
             init1.push( init2 );
             i_row1.push( i_row2 );
             i_col1.push( i_col2 );
             i_blk1.push( i_blk2 );
+
+            o_row1.push( o_row2 );
+            o_blk1.push( o_blk2 );
         }
         SudokuGrid {
             data: init1,
             row_counters: i_row1,
             col_counters: i_col1,
             blk_counters: i_blk1,
+
+            row_order: o_row1,
+            blk_order: o_blk1,
         }
     }
 
@@ -83,12 +108,11 @@ impl SudokuGrid {
         let mut blk_col = self.data[row][col].blk_id%3;
         blk_row = blk_row*3;
         blk_col = blk_col*3;
-        for i in 0..9 {
-            self.flip_val(row,i,val_loc);
-            self.flip_val(i,col,val_loc);
-            let irow = i/3;
-            let icol = i%3;
-            self.flip_val(blk_row+irow,blk_col+icol,val_loc);
+        
+        for icol in 0..9 { self.flip_val( row,icol,val_loc); }
+        for irow in 0..9 { self.flip_val(irow,col ,val_loc); }
+        for iblk in (0..9).map( |i| (blk_row+i/3,blk_col+i%3) ) {
+            self.flip_val(iblk.0,iblk.1,val_loc);
         }
     }
 
@@ -106,6 +130,7 @@ impl SudokuGrid {
 
     fn update(&mut self) -> bool {
         let mut sets = 0;
+        
         for i in 0..9 {
             for val_loc in 0..9 {
                 if self.row_counters[i][val_loc]==1 {
