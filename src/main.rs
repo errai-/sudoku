@@ -42,13 +42,29 @@ impl Indices {
     }
 }
 
-
 struct SudokuCell {
     value: u8,
     candidates: Vec<bool>,
     candidate_amnt: u8,
 
     blk_id: usize,
+}
+
+impl Clone for SudokuCell {
+    fn clone(&self) -> SudokuCell {
+        let mut cands = Vec::new();
+        for i in self.candidates.iter() {
+            cands.push( *i );
+        }
+
+        SudokuCell {
+            value: self.value,
+            candidates: cands,
+            candidate_amnt: self.candidate_amnt,
+
+            blk_id: self.blk_id,
+        }
+    }
 }
 
 impl SudokuCell {
@@ -63,6 +79,7 @@ impl SudokuCell {
     }
 }
 
+#[derive(Clone)]
 struct SudokuGrid<'a> {
     data: Vec< Vec<SudokuCell> >,
 
@@ -371,19 +388,17 @@ fn sudoku_loop(sudoku : &mut SudokuGrid, depth: usize, indices : &Indices) -> bo
                 println!("Failure1!");
                 return false; 
             }
-            let mut probe_sudoku1 : SudokuGrid = SudokuGrid::new(indices);
-            sudoku_copy( sudoku, &mut probe_sudoku1 );
+            let mut probe_sudoku1 : SudokuGrid = sudoku.clone();
             probe_sudoku1.set_cell( dual[2], dual[3], dual[0] as u8 + 1);
             probe_sudoku1.set_cell( dual[4], dual[5], dual[1] as u8 + 1);
             if sudoku_loop( &mut probe_sudoku1, depth-1, indices ) {
-                sudoku_copy( &mut probe_sudoku1, sudoku );
+                *sudoku = probe_sudoku1.clone();
             } else {
-                let mut probe_sudoku2 : SudokuGrid = SudokuGrid::new(indices);
-                sudoku_copy( sudoku, &mut probe_sudoku2 );
+                let mut probe_sudoku2 : SudokuGrid = sudoku.clone();
                 probe_sudoku2.set_cell( dual[2], dual[3], dual[1] as u8 + 1);
                 probe_sudoku2.set_cell( dual[4], dual[5], dual[0] as u8 + 1);
                 if sudoku_loop( &mut probe_sudoku2, depth-1, indices ) {
-                    sudoku_copy( &mut probe_sudoku2, sudoku );
+                    *sudoku = probe_sudoku2.clone();
                 } else {
                     println!("Failure2!");
                     return false;
@@ -481,14 +496,4 @@ fn main() {
     }
     print!("Success count: {}/{}\n",success_count,sudokus.len());
     print!("Corner sum: {}\n",corner_sum);
-}
-
-fn sudoku_copy(sudoku1 : &mut SudokuGrid, sudoku2 : &mut SudokuGrid) {
-    for row in 0..9 {
-    for col in 0..9 {
-        if sudoku2.data[row][col].value == 0 && sudoku1.data[row][col].value != 0 {
-            sudoku2.set_cell( row, col, sudoku1.data[row][col].value);
-        }
-    }
-    }
 }
