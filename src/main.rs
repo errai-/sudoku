@@ -4,13 +4,12 @@ use std::error::Error;
 use std::path::Path;
 use std::env;
 
+
 struct SudokuCell {
     value: u8,
     candidates: Vec<bool>,
     candidate_amnt: u8,
 
-    row_id: usize,
-    col_id: usize,
     blk_id: usize,
 }
 
@@ -21,8 +20,6 @@ impl SudokuCell {
             candidates: vec![true;9],
             candidate_amnt: 9,
 
-            row_id: row,
-            col_id: col,
             blk_id: 3*row+col,
         }
     }
@@ -34,9 +31,6 @@ struct SudokuGrid {
     row_counters: Vec< Vec<u8> >,
     col_counters: Vec< Vec<u8> >,
     blk_counters: Vec< Vec<u8> >,
-
-    row_order: Vec< Vec<(usize,usize)> >,
-    blk_order: Vec< Vec<(usize,usize)> >,
 }
 
 // Initialize containers
@@ -46,47 +40,29 @@ impl SudokuGrid {
         let mut i_row1: Vec< Vec<u8> > = Vec::new();
         let mut i_col1: Vec< Vec<u8> > = Vec::new();
         let mut i_blk1: Vec< Vec<u8> > = Vec::new();
-
-        let mut o_row1: Vec< Vec<(usize,usize)> > = Vec::new();
-        let mut o_blk1: Vec< Vec<(usize,usize)> > = Vec::new();
         for i in 0..9 {
             let mut init2: Vec<SudokuCell> = Vec::new();
             let i_row2: Vec<u8> = vec![9;9];
             let i_col2: Vec<u8> = vec![9;9];
             let i_blk2: Vec<u8> = vec![9;9];
 
-            let mut o_row2: Vec<(usize,usize)> = Vec::new();
-            let mut o_blk2: Vec<(usize,usize)> = Vec::new();
             for j in 0..9 {
                 init2.push( SudokuCell::new(i/3,j/3) );
-
-                o_row2.push( (i,j) );
-                let mut blk_row = i/3;
-                let mut blk_col = i%3;
-                blk_row = i*3;
-                blk_col = i*3;
-                o_blk2.push( (blk_row+j/3,blk_col+j%3) );
             }
             init1.push( init2 );
             i_row1.push( i_row2 );
             i_col1.push( i_col2 );
             i_blk1.push( i_blk2 );
-
-            o_row1.push( o_row2 );
-            o_blk1.push( o_blk2 );
         }
         SudokuGrid {
             data: init1,
             row_counters: i_row1,
             col_counters: i_col1,
             blk_counters: i_blk1,
-
-            row_order: o_row1,
-            blk_order: o_blk1,
         }
     }
 
-    fn set_val(&mut self, row: usize, col: usize, val: u8) {
+    fn set_cell(&mut self, row: usize, col: usize, val: u8, indices: &mut Indices) {
         // Set value and check block id and value id
         self.data[row][col].value = val;
         let blk_loc = self.data[row][col].blk_id;
@@ -104,15 +80,10 @@ impl SudokuGrid {
         }
 
         // Substract the effect of the current value from rows, cols and blocks
-        let mut blk_row = self.data[row][col].blk_id/3;
-        let mut blk_col = self.data[row][col].blk_id%3;
-        blk_row = blk_row*3;
-        blk_col = blk_col*3;
-        
-        for icol in 0..9 { self.flip_val( row,icol,val_loc); }
-        for irow in 0..9 { self.flip_val(irow,col ,val_loc); }
-        for iblk in (0..9).map( |i| (blk_row+i/3,blk_col+i%3) ) {
-            self.flip_val(iblk.0,iblk.1,val_loc);
+        for icol in indices.rows[row].iter() { self.flip_val(icol.0,icol.1,val_loc); }
+        for irow in indices.cols[col].iter() { self.flip_val(irow.0,irow.1,val_loc); }
+        for iblk in indices.blks[self.data[row][col].blk_id].iter() {
+            self.flip_val( iblk.0, iblk.1, val_loc );
         }
     }
 
@@ -128,60 +99,54 @@ impl SudokuGrid {
         false
     }
 
-    fn update(&mut self) -> bool {
+    fn update(&mut self, indices : &mut Indices) -> bool {
         let mut sets = 0;
-        
-        for i in 0..9 {
+        for element in 0..9 {
             for val_loc in 0..9 {
-                if self.row_counters[i][val_loc]==1 {
+                if self.row_counters[element][val_loc]==1 {
                     sets += 1;
-                    for col in 0..9 {
-                        if self.data[i][col].candidates[val_loc] {
-                            self.set_val(i,col,val_loc as u8+1);
-                            break;
-                        }
-                    }
+                    let loc = self.update_loop( element, val_loc, indices, 0 );
+                    self.set_cell(loc.0,loc.1,val_loc as u8+1,indices);
                 }
 
-                if self.col_counters[i][val_loc]==1 {
+                if self.col_counters[element][val_loc]==1 {
                     sets += 1;
-                    for row in 0..9 {
-                        if self.data[row][i].candidates[val_loc] {
-                            self.set_val(row,i,val_loc as u8+1);
-                            break;
-                        }
-                    }
+                    let loc = self.update_loop( element, val_loc, indices, 1 );
+                    self.set_cell(loc.0,loc.1,val_loc as u8+1,indices);
                 }
 
-                if self.blk_counters[i][val_loc]==1 {
+                if self.blk_counters[element][val_loc]==1 {
                     sets += 1;
-                    let mut blk_row = i/3;
-                    let mut blk_col = i%3;
-                    blk_row = blk_row*3;
-                    blk_col = blk_col*3;
-                    for rowcol in 0..9 {
-                        let row = blk_row+rowcol/3;
-                        let col = blk_col+rowcol%3;
-                        if self.data[row][col].candidates[val_loc] {
-                            self.set_val(row,col,val_loc as u8+1);
-                            break;
-                        }
-                    }
+                    let loc = self.update_loop( element, val_loc, indices, 2 );
+                    self.set_cell(loc.0,loc.1,val_loc as u8+1,indices);
                 }
             }
         }
 
-        if sets==0 {
-            sets += self.singles();
-        }
+        // If nothing has worked, check if there is a single cell with no content
+        if sets==0 { sets += self.singles(indices); }
 
-        if sets==0 {
-            if !self.advanced_update() { return false; }
-        }
+        // If nothing has worked, check if there are aligned possibilities on a
+        // row/col/blk. If this does nothing, return false.
+        if sets==0 { return self.advanced_update(indices); }
         true
     }
 
-    fn singles(&mut self) -> usize {
+    fn update_loop(&mut self, element : usize, val_loc : usize, indices : &mut Indices, mode : usize) -> (usize,usize){
+        let iter = if mode==0 { indices.rows[element].iter() }
+              else if mode==1 { indices.cols[element].iter() }
+              else if mode==2 { indices.blks[element].iter() }
+                         else { indices.rows[element].iter() };
+        let mut location : (usize,usize) = (10,10);
+        for pos in iter {
+            if self.data[pos.0][pos.1].candidates[val_loc] {
+                location = *pos;
+            }
+        }
+        location
+    }
+
+    fn singles(&mut self, indices : &mut Indices) -> usize {
         let mut sets = 0;
         for row in 0..9 {
         for col in 0..9 {
@@ -190,7 +155,7 @@ impl SudokuGrid {
                 sets += 1;
                 for val_loc in 0..9 {
                     if self.data[row][col].candidates[val_loc] {
-                        self.set_val(row,col,val_loc as u8+1);
+                        self.set_cell(row,col,val_loc as u8+1, indices);
                     }
                 }
             }
@@ -200,39 +165,35 @@ impl SudokuGrid {
     }
 
     // Seek for blocks with only two candidates for a value and possibly eliminate rows/cols.
-    fn advanced_update(&mut self) -> bool {
+    fn advanced_update(&mut self, indices : &mut Indices) -> bool {
         let mut counter = 0;
+        // Loop over blocks and values
         for blk in 0..9 {
         for val_loc in 0..9 {
             if self.blk_counters[blk][val_loc]==2 {
-                let mut blk_row = blk/3;
-                let mut blk_col = blk%3;
-                blk_row = blk_row*3;
-                blk_col = blk_col*3;
-
-                let mut row_id = 9;
-                let mut col_id = 9;
-                for i in 0..9 {
-                    let row = blk_row+i/3;
-                    let col = blk_col+i%3;
-                    if self.data[row][col].candidates[val_loc] {
-                        if row_id == 9 {
-                            row_id = row;
-                            col_id = col;
+                let mut first_row = 9; let mut first_col = 9;
+                // Loop over the current block
+                for pos in indices.blks[blk].iter() {
+                    // Find the 'pair' and see if they are on the same row/col
+                    if self.data[pos.0][pos.1].candidates[val_loc] {
+                        if first_row == 9 {
+                            first_row = pos.0; first_col = pos.1;
                         } else {
-                            if row==row_id {
-                                for j in 0..blk_col {
-                                    if self.flip_val(row,j,val_loc) { counter += 1; }
+                            if pos.0==first_row {
+                                let blk_edge = pos.1-pos.1%3;
+                                for j in 0..blk_edge {
+                                    if self.flip_val(pos.0,j,val_loc) { counter += 1; }
                                 }
-                                for j in blk_col+3..9 {
-                                    if self.flip_val(row,j,val_loc) { counter += 1; }
+                                for j in blk_edge+3..9 {
+                                    if self.flip_val(pos.0,j,val_loc) { counter += 1; }
                                 }
-                            } else if col==col_id {
-                                for j in 0..blk_row {
-                                    if self.flip_val(j,col,val_loc) { counter += 1; }
+                            } else if pos.1==first_col {
+                                let blk_edge = pos.0-pos.0%3;
+                                for j in 0..blk_edge {
+                                    if self.flip_val(j,pos.1,val_loc) { counter += 1; }
                                 }
-                                for j in blk_row+3..9 {
-                                    if self.flip_val(j,col,val_loc) { counter += 1; }
+                                for j in blk_edge+3..9 {
+                                    if self.flip_val(j,pos.1,val_loc) { counter += 1; }
                                 }
                             }
                             break;
@@ -248,25 +209,12 @@ impl SudokuGrid {
 
     // If sanity check is turned on, counts the sum in each row, column and block.
     // This is on average a trustworthy sanity check.
-    fn is_complete(&self,sanity_check: bool) -> bool {
+    fn is_complete(&self,sanity_check: bool,indices : &mut Indices) -> bool {
         if sanity_check {
-            for rowcol in 0..9 {
-                let mut row_count = 0;
-                let mut col_count = 0;
-
-                let mut blk_count = 0;
-                let mut blk_row = rowcol/3;
-                let mut blk_col = rowcol%3;
-
-                blk_row = blk_row*3;
-                blk_col = blk_col*3;
-                for colrow in 0..9 {
-                    row_count += self.data[rowcol][colrow].value;
-                    col_count += self.data[colrow][rowcol].value;
-                    let row = blk_row+colrow/3;
-                    let col = blk_col+colrow%3;
-                    blk_count += self.data[row][col].value;
-                }
+            for element_id in 0..9 {
+                let row_count : u32 = indices.rows[element_id].iter().map(|&rowcol| self.data[rowcol.0][rowcol.1].value as u32).fold(0, |acc, item| acc + item);
+                let col_count : u32 = indices.cols[element_id].iter().map(|&rowcol| self.data[rowcol.0][rowcol.1].value as u32).fold(0, |acc, item| acc + item);
+                let blk_count : u32 = indices.blks[element_id].iter().map(|&rowcol| self.data[rowcol.0][rowcol.1].value as u32).fold(0, |acc, item| acc + item);
                 if row_count!=45 || col_count!=45 || blk_count!=45 {
                     return false;
                 }
@@ -357,16 +305,15 @@ fn general_dualism(sudoku : &SudokuGrid, rowscols : &Vec< Vec<(usize,usize)> >, 
 
 // Find two cells from rows/cols/blks in which only two alternative values fit.
 // Both of the possible solutions will be tried out.
-fn dualism(sudoku : &SudokuGrid, rows : &Vec< Vec<(usize,usize)> >, 
-           cols : &Vec< Vec<(usize,usize)> >, blks : &Vec< Vec<(usize,usize)> >) -> Vec<usize> {
+fn dualism(sudoku : &SudokuGrid, indices : & mut Indices) -> Vec<usize> {
     
-    let vec1 = general_dualism( sudoku, rows, 0 );
+    let vec1 = general_dualism( sudoku, &indices.rows, 0 );
     if vec1.len()==6 { return vec1; }
     
-    let vec2 = general_dualism( sudoku, cols, 1 );
+    let vec2 = general_dualism( sudoku, &indices.cols, 1 );
     if vec2.len()==6 { return vec2; }
     
-    let vec3 = general_dualism( sudoku, blks, 2 );
+    let vec3 = general_dualism( sudoku, &indices.blks, 2 );
     if vec3.len()==6 { return vec3; }
     
     Vec::new()
@@ -374,29 +321,28 @@ fn dualism(sudoku : &SudokuGrid, rows : &Vec< Vec<(usize,usize)> >,
 
 // Call update for a sudoku until it is finished.
 // If an unsuccessful update is encountered, dualism is called (see above)
-fn sudoku_loop(sudoku : &mut SudokuGrid, depth: usize, row_pos: &mut Vec< Vec<(usize,usize)> >,
-               col_pos: &mut Vec< Vec<(usize,usize)> >, blk_pos: &mut Vec< Vec<(usize,usize)> >) -> bool {
-    while !sudoku.is_complete(false) {
-        if !sudoku.update() {
+fn sudoku_loop(sudoku : &mut SudokuGrid, depth: usize, indices : &mut Indices) -> bool {
+    while !sudoku.is_complete(false,indices) {
+        if !sudoku.update(indices) {
             if depth<1 { return false; }
-            let dual = dualism(&sudoku,&row_pos,&col_pos,&blk_pos);
+            let dual = dualism(sudoku,indices);
             if dual.len()!=6 { 
                 println!("Failure1!");
                 return false; 
             }
             let mut probe_sudoku1 : SudokuGrid = SudokuGrid::new();
-            sudoku_copy( sudoku, &mut probe_sudoku1 );
-            probe_sudoku1.set_val( dual[2], dual[3], dual[0] as u8 + 1 );
-            probe_sudoku1.set_val( dual[4], dual[5], dual[1] as u8 + 1 );
-            if sudoku_loop( &mut probe_sudoku1, depth-1, row_pos, col_pos, blk_pos ) {
-                sudoku_copy( &mut probe_sudoku1, sudoku );
+            sudoku_copy( sudoku, &mut probe_sudoku1, indices );
+            probe_sudoku1.set_cell( dual[2], dual[3], dual[0] as u8 + 1, indices );
+            probe_sudoku1.set_cell( dual[4], dual[5], dual[1] as u8 + 1, indices );
+            if sudoku_loop( &mut probe_sudoku1, depth-1, indices ) {
+                sudoku_copy( &mut probe_sudoku1, sudoku, indices );
             } else {
                 let mut probe_sudoku2 : SudokuGrid = SudokuGrid::new();
-                sudoku_copy( sudoku, &mut probe_sudoku2 );
-                probe_sudoku2.set_val( dual[2], dual[3], dual[1] as u8 + 1 );
-                probe_sudoku2.set_val( dual[4], dual[5], dual[0] as u8 + 1 );
-                if sudoku_loop( &mut probe_sudoku2, depth-1, row_pos, col_pos, blk_pos ) {
-                    sudoku_copy( &mut probe_sudoku2, sudoku );
+                sudoku_copy( sudoku, &mut probe_sudoku2, indices );
+                probe_sudoku2.set_cell( dual[2], dual[3], dual[1] as u8 + 1, indices );
+                probe_sudoku2.set_cell( dual[4], dual[5], dual[0] as u8 + 1, indices );
+                if sudoku_loop( &mut probe_sudoku2, depth-1, indices ) {
+                    sudoku_copy( &mut probe_sudoku2, sudoku, indices );
                 } else {
                     println!("Failure2!");
                     return false;
@@ -405,7 +351,7 @@ fn sudoku_loop(sudoku : &mut SudokuGrid, depth: usize, row_pos: &mut Vec< Vec<(u
             break;
         }
     }
-    if !sudoku.is_complete(true) {
+    if !sudoku.is_complete(true,indices) {
         println!("Failure3");
         return false;
     }
@@ -415,7 +361,7 @@ fn sudoku_loop(sudoku : &mut SudokuGrid, depth: usize, row_pos: &mut Vec< Vec<(u
 // Read in the text data.
 // The text file always has first an arbitrary row and then nine sudoku rows
 // Containing the initial setup.
-fn reader( data: &str, read_amount: usize, sudokus: &mut Vec<SudokuGrid> ) {
+fn reader( data: &str, read_amount: usize, sudokus: &mut Vec<SudokuGrid>, indices : &mut Indices ) {
     let mut sudoku_num = 1;
     let mut row = 0;
     let mut col = 0;
@@ -430,7 +376,7 @@ fn reader( data: &str, read_amount: usize, sudokus: &mut Vec<SudokuGrid> ) {
         } else if row != 0 {
             let num = sudoku_char.to_digit(10).unwrap();
             if num != 0 {
-                sudokus[sudoku_num-1].set_val(row-1,col, num as u8);
+                sudokus[sudoku_num-1].set_cell(row-1,col, num as u8, indices);
             }
             col += 1;
         }
@@ -439,6 +385,44 @@ fn reader( data: &str, read_amount: usize, sudokus: &mut Vec<SudokuGrid> ) {
             row = 0;
             sudoku_num += 1;
             if sudoku_num > read_amount { break; }
+        }
+    }
+}
+
+struct Indices {
+    rows: Vec< Vec<(usize,usize)> >,
+    cols: Vec< Vec<(usize,usize)> >,
+    blks: Vec< Vec<(usize,usize)> >,
+}
+
+// Initialize containers
+impl Indices {
+    fn new()->Indices {
+        // Setup vectors for positions in the grid
+        let mut row_pos: Vec< Vec<(usize,usize)> > = Vec::new();
+        let mut col_pos: Vec< Vec<(usize,usize)> > = Vec::new();
+        let mut blk_pos: Vec< Vec<(usize,usize)> > = Vec::new();
+        for i in 0..9 {
+            let mut row_sub: Vec<(usize,usize)> = Vec::new();
+            let mut col_sub: Vec<(usize,usize)> = Vec::new();
+            let mut blk_sub: Vec<(usize,usize)> = Vec::new();
+            for j in 0..9 {
+                row_sub.push( (i,j) );
+                col_sub.push( (j,i) );
+                let mut blk_row = i/3;
+                let mut blk_col = i%3;
+                blk_row *= 3;
+                blk_col *= 3;
+                blk_sub.push( (blk_row+j/3,blk_col+j%3) );
+            }
+            row_pos.push( row_sub );
+            col_pos.push( col_sub );
+            blk_pos.push( blk_sub );
+        }
+        Indices {
+            rows: row_pos,
+            cols: col_pos,
+            blks: blk_pos,
         }
     }
 }
@@ -474,35 +458,16 @@ fn main() {
         Err(why) => panic!("could not read {}: {}", display, Error::description(&why)),
         Ok(_) => {},
     }
-    let mut sudokus : Vec<SudokuGrid> = Vec::new();
-    reader( &lines, read_amount, &mut sudokus );
 
-    // Setup vectors for positions in the grid
-    let mut row_pos: Vec< Vec<(usize,usize)> > = Vec::new();
-    let mut col_pos: Vec< Vec<(usize,usize)> > = Vec::new();
-    let mut blk_pos: Vec< Vec<(usize,usize)> > = Vec::new();
-    for i in 0..9 {
-        let mut row_sub: Vec<(usize,usize)> = Vec::new();
-        let mut col_sub: Vec<(usize,usize)> = Vec::new();
-        let mut blk_sub: Vec<(usize,usize)> = Vec::new();
-        for j in 0..9 {
-            row_sub.push( (i,j) );
-            col_sub.push( (j,i) );
-            let mut blk_row = i/3;
-            let mut blk_col = i%3;
-            blk_row = i*3;
-            blk_col = i*3;
-            blk_sub.push( (blk_row+j/3,blk_col+j%3) );
-        }
-        row_pos.push( row_sub );
-        col_pos.push( col_sub );
-        blk_pos.push( blk_sub );
-    }
+    let mut indices : Indices = Indices::new();
+    
+    let mut sudokus : Vec<SudokuGrid> = Vec::new();
+    reader( &lines, read_amount, &mut sudokus, &mut indices );
 
     let mut success_count = 0;
     let mut corner_sum = 0;
     for sudoku_idx in 0..sudokus.len() {
-        let success = sudoku_loop( &mut sudokus[sudoku_idx],1,&mut row_pos,&mut col_pos,&mut blk_pos);
+        let success = sudoku_loop( &mut sudokus[sudoku_idx],1,&mut indices);
         if !success {
             println!("{}",sudoku_idx);
             sudokus[sudoku_idx].print();
@@ -515,11 +480,11 @@ fn main() {
     print!("Corner sum: {}\n",corner_sum);
 }
 
-fn sudoku_copy(sudoku1 : &mut SudokuGrid, sudoku2 : &mut SudokuGrid) {
+fn sudoku_copy(sudoku1 : &mut SudokuGrid, sudoku2 : &mut SudokuGrid, indices : &mut Indices) {
     for row in 0..9 {
     for col in 0..9 {
         if sudoku2.data[row][col].value == 0 && sudoku1.data[row][col].value != 0 {
-            sudoku2.set_val( row, col, sudoku1.data[row][col].value );
+            sudoku2.set_cell( row, col, sudoku1.data[row][col].value, indices );
         }
     }
     }
