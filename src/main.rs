@@ -284,171 +284,7 @@ impl SudokuGrid {
         true
     }
 
-    fn dualism(&self) -> Vec<usize> {
-        for row in 0..9 {
-            let mut strategy: Vec<usize> = Vec::new();
-            let mut probe: Vec<usize> = Vec::new();
-            for val_loc in 0..9 {
-                if self.row_counters[row][val_loc]==2 {
-                    probe.push(val_loc);
-                }
-            }
-            if probe.len()>1 {
-                let mut pos1 = -1;
-                let mut pos2 = -1;
-                for val1 in 0..probe.len()-1 {
-                    for col in 0..9 {
-                        if self.data[row][col].candidates[probe[val1]] {
-                            if pos1 == -1 {
-                                pos1 = col;
-                            } else {
-                                pos2 = col;
-                                break;
-                            }
-                        }
-                    }
-                    let mut pos3 = -1;
-                    let mut pos4 = -1;
-                    for val2 in val1+1..probe.len() {
-                        for col2 in 0..9 {
-                            if self.data[row][col2].candidates[probe[val2]] {
-                                if pos3 == -1 {
-                                    pos3 = col2;
-                                } else {
-                                    pos4 = col2;
-                                    break;
-                                }
-                            }
-                        }
-                        if pos3==pos1 && pos4==pos2 {
-                            strategy.push(probe[val1]);
-                            strategy.push(probe[val2]);
-                            strategy.push( row );
-                            strategy.push( pos3 );
-                            strategy.push( row );
-                            strategy.push( pos4 );
-                            break;
-                        }
-                    }
-                    if strategy.len()==6 {
-                        return strategy;
-                    }
-                }
-            }
-        }
-        for col in 0..9 {
-            let mut strategy: Vec<usize> = Vec::new();
-            let mut probe: Vec<usize> = Vec::new();
-            for val_loc in 0..9 {
-                if self.col_counters[col][val_loc]==2 {
-                    probe.push(val_loc);
-                }
-            }
-            if probe.len()>1 {
-                let mut pos1 = -1;
-                let mut pos2 = -1;
-                for val1 in 0..probe.len()-1 {
-                    for row in 0..9 {
-                        if self.data[row][col].candidates[probe[val1]] {
-                            if pos1 == -1 {
-                                pos1 = row;
-                            } else {
-                                pos2 = row;
-                                break;
-                            }
-                        }
-                    }
-                    let mut pos3 = -1;
-                    let mut pos4 = -1;
-                    for val2 in val1+1..probe.len() {
-                        for row2 in 0..9 {
-                            if self.data[row2][col].candidates[probe[val2]] {
-                                if pos3 == -1 {
-                                    pos3 = row2;
-                                } else {
-                                    pos4 = row2;
-                                    break;
-                                }
-                            }
-                        }
-                        if pos3==pos1 && pos4==pos2 {
-                            strategy.push(probe[val1]);
-                            strategy.push(probe[val2]);
-                            strategy.push( pos3 );
-                            strategy.push( col );
-                            strategy.push( pos4 );
-                            strategy.push( col );
-                            break;
-                        }
-                    }
-                    if strategy.len()==6 {
-                        return strategy;
-                    }
-                }
-            }
-        }
-        for blk in 0..9 {
-            let mut strategy: Vec<usize> = Vec::new();
-            let mut probe: Vec<usize> = Vec::new();
-            for val_loc in 0..9 {
-                if self.blk_counters[blk][val_loc]==2 {
-                    probe.push(val_loc);
-                }
-            }
-            if probe.len()>1 {
-                let mut blk_row = blk/3;
-                let mut blk_col = blk%3;
-
-                blk_row = blk_row*3;
-                blk_col = blk_col*3;
-                let mut pos1 = -1;
-                let mut pos2 = -1;
-                for val1 in 0..probe.len()-1 {
-                    for colrow in 0..9 {
-                        let row = blk_row+colrow/3;
-                        let col = blk_col+colrow%3;
-                        if self.data[row][col].candidates[probe[val1]] {
-                            if pos1 == -1 {
-                                pos1 = colrow;
-                            } else {
-                                pos2 = colrow;
-                                break;
-                            }
-                        }
-                    }
-                    let mut pos3 = -1;
-                    let mut pos4 = -1;
-                    for val2 in val1+1..probe.len() {
-                        for colrow2 in 0..9 {
-                            let row2 = blk_row+colrow2/3;
-                            let col2 = blk_col+colrow2%3;
-                            if self.data[row2][col2].candidates[probe[val2]] {
-                                if pos3 == -1 {
-                                    pos3 = colrow2;
-                                } else {
-                                    pos4 = colrow2;
-                                    break;
-                                }
-                            }
-                        }
-                        if pos3==pos1 && pos4==pos2 {
-                            strategy.push(probe[val1]);
-                            strategy.push(probe[val2]);
-                            strategy.push( blk_row+pos3/3 );
-                            strategy.push( blk_col+pos3%3 );
-                            strategy.push( blk_row+pos4/3 );
-                            strategy.push( blk_col+pos4%3 );
-                            break;
-                        }
-                    }
-                    if strategy.len()==6 { return strategy; }
-                }
-            }
-        }
-        println!("");
-        vec![0]
-    }
-
+    // Calculate the value formed by the three digits in the left corner
     fn corner_val(&self) -> u32 {
         let mut val = self.data[0][2].value as u32;
         val += (self.data[0][1].value as u32)*10;
@@ -456,6 +292,7 @@ impl SudokuGrid {
         val
     }
 
+    // A generic printing functiion
     fn print(&self) {
         print!( "\n" );
         for i in 0..9 {
@@ -470,6 +307,138 @@ impl SudokuGrid {
             if (i+1)%3==0 {
                 print!("\n");
             }
+        }
+    }
+}
+
+// Actual body of dualism (below), finds two cells with only two possible values
+// Type: 0 rows, 1 cols, 2 blks
+fn general_dualism(sudoku : &SudokuGrid, rowscols : &Vec< Vec<(usize,usize)> >, mode : u32) -> Vec<usize> {
+    for element in 0..9 {
+        let mut strategy: Vec<usize> = Vec::new();
+        let mut probe: Vec<usize> = Vec::new();
+        for val_loc in 0..9 {
+            if mode==0 && sudoku.row_counters[element][val_loc]==2 { probe.push(val_loc); }
+            if mode==1 && sudoku.col_counters[element][val_loc]==2 { probe.push(val_loc); }
+            if mode==2 && sudoku.blk_counters[element][val_loc]==2 { probe.push(val_loc); }
+        }
+        if probe.len()>1 {
+            let mut pos1 : (usize,usize) = (10,0); let mut pos2 : (usize,usize) = (0,0);
+            for val1 in 0..probe.len()-1 {
+                for rowcol in rowscols[element].iter() {
+                    if sudoku.data[rowcol.0][rowcol.1].candidates[probe[val1]] {
+                        if pos1.0 == 10 { pos1 = *rowcol; }
+                        else { pos2 = *rowcol; break; }
+                    }
+                }
+                let mut pos3 : (usize,usize) = (11,0); let mut pos4 : (usize,usize) = (10,0);
+                for val2 in val1+1..probe.len() {
+                    for rowcol in rowscols[element].iter() {
+                        if sudoku.data[rowcol.0][rowcol.1].candidates[probe[val2]] {
+                            if pos3.0 == 11 { pos3 = *rowcol; }
+                            else { pos4 = *rowcol; break; }
+                        }
+                    }
+                    if pos3==pos1 && pos4==pos2 {
+                        strategy.push(probe[val1]); strategy.push(probe[val2]);
+                        strategy.push( pos3.0 ); strategy.push( pos3.1 );
+                        strategy.push( pos4.0 ); strategy.push( pos4.1 );
+                        break;
+                    }
+                }
+                if strategy.len()==6 {
+                    return strategy;
+                }
+            }
+        }
+    }
+    Vec::new()
+}
+
+// Find two cells from rows/cols/blks in which only two alternative values fit.
+// Both of the possible solutions will be tried out.
+fn dualism(sudoku : &SudokuGrid, rows : &Vec< Vec<(usize,usize)> >, 
+           cols : &Vec< Vec<(usize,usize)> >, blks : &Vec< Vec<(usize,usize)> >) -> Vec<usize> {
+    
+    let vec1 = general_dualism( sudoku, rows, 0 );
+    if vec1.len()==6 { return vec1; }
+    
+    let vec2 = general_dualism( sudoku, cols, 1 );
+    if vec2.len()==6 { return vec2; }
+    
+    let vec3 = general_dualism( sudoku, blks, 2 );
+    if vec3.len()==6 { return vec3; }
+    
+    Vec::new()
+}
+
+// Call update for a sudoku until it is finished.
+// If an unsuccessful update is encountered, dualism is called (see above)
+fn sudoku_loop(sudoku : &mut SudokuGrid, depth: usize, row_pos: &mut Vec< Vec<(usize,usize)> >,
+               col_pos: &mut Vec< Vec<(usize,usize)> >, blk_pos: &mut Vec< Vec<(usize,usize)> >) -> bool {
+    while !sudoku.is_complete(false) {
+        if !sudoku.update() {
+            if depth<1 { return false; }
+            let dual = dualism(&sudoku,&row_pos,&col_pos,&blk_pos);
+            if dual.len()!=6 { 
+                println!("Failure1!");
+                return false; 
+            }
+            let mut probe_sudoku1 : SudokuGrid = SudokuGrid::new();
+            sudoku_copy( sudoku, &mut probe_sudoku1 );
+            probe_sudoku1.set_val( dual[2], dual[3], dual[0] as u8 + 1 );
+            probe_sudoku1.set_val( dual[4], dual[5], dual[1] as u8 + 1 );
+            if sudoku_loop( &mut probe_sudoku1, depth-1, row_pos, col_pos, blk_pos ) {
+                sudoku_copy( &mut probe_sudoku1, sudoku );
+            } else {
+                let mut probe_sudoku2 : SudokuGrid = SudokuGrid::new();
+                sudoku_copy( sudoku, &mut probe_sudoku2 );
+                probe_sudoku2.set_val( dual[2], dual[3], dual[1] as u8 + 1 );
+                probe_sudoku2.set_val( dual[4], dual[5], dual[0] as u8 + 1 );
+                if sudoku_loop( &mut probe_sudoku2, depth-1, row_pos, col_pos, blk_pos ) {
+                    sudoku_copy( &mut probe_sudoku2, sudoku );
+                } else {
+                    println!("Failure2!");
+                    return false;
+                }
+            }
+            break;
+        }
+    }
+    if !sudoku.is_complete(true) {
+        println!("Failure3");
+        return false;
+    }
+    true
+}
+
+// Read in the text data.
+// The text file always has first an arbitrary row and then nine sudoku rows
+// Containing the initial setup.
+fn reader( data: &str, read_amount: usize, sudokus: &mut Vec<SudokuGrid> ) {
+    let mut sudoku_num = 1;
+    let mut row = 0;
+    let mut col = 0;
+
+    for sudoku_char in data.chars() {
+        if sudoku_char == '\n' {
+            if row == 0 {
+                sudokus.push( SudokuGrid::new() );
+            }
+            row += 1;
+            col = 0;
+        } else if row != 0 {
+            let num = sudoku_char.to_digit(10).unwrap();
+            if num != 0 {
+                sudokus[sudoku_num-1].set_val(row-1,col, num as u8);
+            }
+            col += 1;
+        }
+        
+        if row > 9 {
+            row = 0;
+            sudoku_num += 1;
+            if sudoku_num > read_amount { break; }
         }
     }
 }
@@ -505,14 +474,35 @@ fn main() {
         Err(why) => panic!("could not read {}: {}", display, Error::description(&why)),
         Ok(_) => {},
     }
-
     let mut sudokus : Vec<SudokuGrid> = Vec::new();
     reader( &lines, read_amount, &mut sudokus );
+
+    // Setup vectors for positions in the grid
+    let mut row_pos: Vec< Vec<(usize,usize)> > = Vec::new();
+    let mut col_pos: Vec< Vec<(usize,usize)> > = Vec::new();
+    let mut blk_pos: Vec< Vec<(usize,usize)> > = Vec::new();
+    for i in 0..9 {
+        let mut row_sub: Vec<(usize,usize)> = Vec::new();
+        let mut col_sub: Vec<(usize,usize)> = Vec::new();
+        let mut blk_sub: Vec<(usize,usize)> = Vec::new();
+        for j in 0..9 {
+            row_sub.push( (i,j) );
+            col_sub.push( (j,i) );
+            let mut blk_row = i/3;
+            let mut blk_col = i%3;
+            blk_row = i*3;
+            blk_col = i*3;
+            blk_sub.push( (blk_row+j/3,blk_col+j%3) );
+        }
+        row_pos.push( row_sub );
+        col_pos.push( col_sub );
+        blk_pos.push( blk_sub );
+    }
 
     let mut success_count = 0;
     let mut corner_sum = 0;
     for sudoku_idx in 0..sudokus.len() {
-        let success = sudoku_loop( &mut sudokus[sudoku_idx],1 );
+        let success = sudoku_loop( &mut sudokus[sudoku_idx],1,&mut row_pos,&mut col_pos,&mut blk_pos);
         if !success {
             println!("{}",sudoku_idx);
             sudokus[sudoku_idx].print();
@@ -532,70 +522,5 @@ fn sudoku_copy(sudoku1 : &mut SudokuGrid, sudoku2 : &mut SudokuGrid) {
             sudoku2.set_val( row, col, sudoku1.data[row][col].value );
         }
     }
-    }
-}
-
-fn sudoku_loop(sudoku : &mut SudokuGrid, depth: usize) -> bool {
-    while !sudoku.is_complete(false) {
-        if !sudoku.update() {
-            if depth<1 { return false; }
-            let dual = sudoku.dualism();
-            if dual.len()!=6 { 
-                println!("Failure1!");
-                return false; 
-            }
-            let mut probe_sudoku1 : SudokuGrid = SudokuGrid::new();
-            sudoku_copy( sudoku, &mut probe_sudoku1 );
-            probe_sudoku1.set_val( dual[2], dual[3], dual[0] as u8 + 1 );
-            probe_sudoku1.set_val( dual[4], dual[5], dual[1] as u8 + 1 );
-            if sudoku_loop( &mut probe_sudoku1, depth-1 ) {
-                sudoku_copy( &mut probe_sudoku1, sudoku );
-            } else {
-                let mut probe_sudoku2 : SudokuGrid = SudokuGrid::new();
-                sudoku_copy( sudoku, &mut probe_sudoku2 );
-                probe_sudoku2.set_val( dual[2], dual[3], dual[1] as u8 + 1 );
-                probe_sudoku2.set_val( dual[4], dual[5], dual[0] as u8 + 1 );
-                if sudoku_loop( &mut probe_sudoku2, depth-1 ) {
-                    sudoku_copy( &mut probe_sudoku2, sudoku );
-                } else {
-                    println!("Failure2!");
-                    return false;
-                }
-            }
-            break;
-        }
-    }
-    if !sudoku.is_complete(true) {
-        println!("Failure3");
-        return false;
-    }
-    true
-}
-
-fn reader( data: &str, read_amount: usize, sudokus: &mut Vec<SudokuGrid> ) {
-    let mut sudoku_num = 1;
-    let mut row = 0;
-    let mut col = 0;
-
-    for sudoku_char in data.chars() {
-        if sudoku_char == '\n' {
-            if row == 0 {
-                sudokus.push( SudokuGrid::new() );
-            }
-            row += 1;
-            col = 0;
-        } else if row != 0 {
-            let num = sudoku_char.to_digit(10).unwrap();
-            if num != 0 {
-                sudokus[sudoku_num-1].set_val(row-1,col, num as u8);
-            }
-            col += 1;
-        }
-        
-        if row > 9 {
-            row = 0;
-            sudoku_num += 1;
-            if sudoku_num > read_amount { break; }
-        }
     }
 }
