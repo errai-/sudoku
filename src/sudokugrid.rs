@@ -132,7 +132,6 @@ impl<'a> SudokuGrid<'a> {
         let mut sets = 0;
         for row in 0..9 {
         for col in 0..9 {
-            if self.data[row][col].candidate_amnt==0 { continue; }
             if self.data[row][col].candidate_amnt==1 {
                 sets += 1;
                 for val_loc in 0..9 {
