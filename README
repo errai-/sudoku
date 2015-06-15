@@ -1,1 +1,28 @@
 A sudoku solver made especially for the Project Euler problem no. 96.
+The implementation is done with rust. To run, type
+'cargo build p096_sudoku.txt'
+or replace the .txt file with other sudokus. The sudoku text format
+assumes always one arbitrary line and nine sudoku lines (see the
+given sudoku file for example). If only a part of sudokus are
+to be solved, specify a number after text file name. To print
+more of the output etc., prints can be added to main.rs.
+
+The goal of this solver is to solve a sudoku similarly as a human.
+Basic inclusions/exclusions are checked for each cell. The struct
+SudokuCell keeps book of the possible values in a certain cell in
+the grid. Additionally, lists are kept of the amount of potential
+places for a certain number in each row, column and block. SudokuGrid
+holds the general data for a whole sudoku and most of the relevant
+functions.
+
+In addition to the generic update scheme, there is an advanced update
+scheme. This checks for blocks that allow certain values only on one
+row/column. This is implemented only for two values, this technique
+is seldom useful with three values (on a row/col).
+
+As a final component, the 'dualism' routine checks, whether there are
+rows, columns or blocks that have two cells which are certainly occupied
+by two alternative values. The routine allows to split the solution from
+here with the two different approaches. This techique is surprisingly
+powerful and often in "hard sudokus" there is only a dualistic splitting
+present.
