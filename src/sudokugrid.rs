@@ -213,6 +213,21 @@ impl<'a> SudokuGrid<'a> {
         true
     }
 
+    // Find two cells from rows/cols/blks in which only two alternative values fit.
+    // Both of the possible solutions will be tried out.
+    pub fn dualism(&mut self) -> Vec<usize> {
+        let vec1 = self.general_dualism( &self.indexing.rows, 0 );
+        if vec1.len()==6 { return vec1; }
+
+        let vec2 = self.general_dualism( &self.indexing.cols, 1 );
+        if vec2.len()==6 { return vec2; }
+
+        let vec3 = self.general_dualism( &self.indexing.blks, 2 );
+        if vec3.len()==6 { return vec3; }
+
+        Vec::new()
+    }
+
     // Actual body of dualism (below), finds two cells with only two possible values
     // Type: 0 rows, 1 cols, 2 blks
     fn general_dualism(&mut self, rowscols : &Vec< Vec<(usize,usize)> >, mode : u32) -> Vec<usize> {
@@ -254,21 +269,6 @@ impl<'a> SudokuGrid<'a> {
                 }
             }
         }
-        Vec::new()
-    }
-
-    // Find two cells from rows/cols/blks in which only two alternative values fit.
-    // Both of the possible solutions will be tried out.
-    pub fn dualism(&mut self) -> Vec<usize> {
-        let vec1 = self.general_dualism( &self.indexing.rows, 0 );
-        if vec1.len()==6 { return vec1; }
-
-        let vec2 = self.general_dualism( &self.indexing.cols, 1 );
-        if vec2.len()==6 { return vec2; }
-
-        let vec3 = self.general_dualism( &self.indexing.blks, 2 );
-        if vec3.len()==6 { return vec3; }
-
         Vec::new()
     }
 
