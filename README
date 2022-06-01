@@ -1,4 +1,5 @@
 A sudoku solver made especially for the Project Euler problem no. 96.
+First in the series of sudoku solvers, followed by 'sudoku-' and 'SAT-sudoku'.
 The implementation is done with rust. To run, type
 'cargo build p096_sudoku.txt'
 or replace the .txt file with other sudokus. The sudoku text format
